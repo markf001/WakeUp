@@ -13,26 +13,32 @@ enum EmojiTag: String, CaseIterable {
 
 struct EmojiStore {
     private let emojisByTag: [EmojiTag: [String]] = [
-        .good: ["😊", "😄", "👍", "🌞"],
-        .bad: ["😢", "😠", "👎", "🌧️"],
-        .better: ["😎", "🔥", "💪", "🚀"]
+        .good: ["🌞", "😊", "😌", "☕️", "🌻", "😴", "🌤️", "📅"],
+        .bad: ["🥱", "😩", "😒", "🌧️", "😔", "🫠", "🛌", "🤯"],
+        .better: ["🚀", "💪", "🔥", "😎", "🌟", "✅", "🏃‍♂️", "⏰"]
     ]
 
     private let textsByTag: [EmojiTag: [String]] = [
         .good: [
-            "Hope you're having a nice {timeOfDay}!",
-            "Wishing you a peaceful {timeOfDay}.",
-            "It's a great {timeOfDay}, isn't it?"
-        ],
+            "Good morning!",
+            "Fresh start!",
+            "Rise up!",
+            "New day!",
+            "Let’s go!"
+        ]
+,
         .bad: [
-            "Ugh... rough {timeOfDay}, huh?",
-            "Not every {timeOfDay} can be perfect.",
-            "Hang in there this {timeOfDay}."
+            "Still tired?",
+            "Try again.",
+            "Keep going.",
+            "Deep breaths."
         ],
         .better: [
-            "Things are looking up this {timeOfDay}!",
-            "You're doing awesome this {timeOfDay}!",
-            "Let's crush the {timeOfDay}!"
+            "Crush it!",
+            "On fire!",
+            "Own it!",
+            "Let’s win!",
+            "Unstoppable!"
         ]
     ]
 
