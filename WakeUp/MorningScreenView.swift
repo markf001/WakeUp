@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct MorningScreenView: View {
+    @State private var showingAlarmSheet = false
+    @State private var alarmTime: Date? = nil
     @State private var weekDays: [DayStatus] = []
     @State private var streakCount = 0
 
@@ -40,18 +42,29 @@ struct MorningScreenView: View {
                     }
                 }
 
-                Spacer()
+                
 
-                Button(action: handleWakeupCommit) {
+                Button(action: { handleWakeupCommit() }) {
                     HStack {
                         Image(systemName: "alarm")
-                        Text("Commit to morning!")
-                            .fontWeight(.semibold)
+                        if let time = alarmTime {
+                            Text("Alarm set for \(formattedTime(time))")
+                                .fontWeight(.semibold)
+                        } else {
+                            Text("Commit to morning!")
+                                .fontWeight(.semibold)
+                        }
                     }
                     .padding()
                     .foregroundColor(.black)
                     .background(Color(.systemGray5))
                     .clipShape(Capsule())
+                }
+                
+                .sheet(isPresented: $showingAlarmSheet) {
+                    AlarmSheetView(isPresented: $showingAlarmSheet)
+                        .presentationDetents([.medium]) // Halfway height sheet (iOS 16+)
+                        .presentationDragIndicator(.visible)
                 }
                 .padding(.bottom, 40)
             }
@@ -61,20 +74,21 @@ struct MorningScreenView: View {
     }
 
     func handleWakeupCommit() {
-        let today = Calendar.current.component(.weekday, from: Date())
-        let weekdaySymbols = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-        let todaySymbol = weekdaySymbols[today - 1]
-
-        if let index = weekDays.firstIndex(where: { $0.name == todaySymbol }) {
-            if !weekDays[index].completed {
-                weekDays[index].completed = true
-                streakCount += 1
-                saveData()
-                print("✅ Wake-up committed for \(todaySymbol)")
-            } else {
-                print("🟢 Already completed today")
-            }
-        }
+        showingAlarmSheet = true
+//        let today = Calendar.current.component(.weekday, from: Date())
+//        let weekdaySymbols = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+//        let todaySymbol = weekdaySymbols[today - 1]
+//
+//        if let index = weekDays.firstIndex(where: { $0.name == todaySymbol }) {
+//            if !weekDays[index].completed {
+//                weekDays[index].completed = true
+//                streakCount += 1
+//                saveData()
+//                print("✅ Wake-up committed for \(todaySymbol)")
+//            } else {
+//                print("🟢 Already completed today")
+//            }
+//        }
     }
 
     func saveData() {
@@ -88,6 +102,12 @@ struct MorningScreenView: View {
     }
 
     func loadData() {
+        // Load alarm if set
+        if let savedAlarmTime = UserDefaults.standard.object(forKey: "morningAlarmTime") as? Date {
+            alarmTime = savedAlarmTime
+        }
+
+        
         // Load streak
         streakCount = UserDefaults.standard.integer(forKey: streakKey)
 
@@ -104,6 +124,12 @@ struct MorningScreenView: View {
                 DayStatus(name: "Fri", completed: false)
             ]
         }
+    }
+    
+    func formattedTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
 }
 
