@@ -10,6 +10,7 @@ import AVFoundation
 import AudioToolbox
 
 struct AlarmFullScreenView: View {
+    @Binding var isPresented: Bool
     @State private var audioPlayer: AVAudioPlayer?
     @State private var navigateToTestView = false
 
@@ -53,7 +54,7 @@ struct AlarmFullScreenView: View {
                 stopAlarmSound()
             }
             .navigationDestination(isPresented: $navigateToTestView) {
-                TapGameView()
+                TapGameView(isPresented: $isPresented)
             }
         }
     }
@@ -92,4 +93,3 @@ struct AlarmFullScreenView: View {
         AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
     }
 }
-

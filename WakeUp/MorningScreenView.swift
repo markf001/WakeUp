@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import UserNotifications
 
+
 struct MorningScreenView: View {
     @Environment(\.modelContext) private var context
     @Query private var entries: [CompletionData]
@@ -12,6 +13,7 @@ struct MorningScreenView: View {
     @State private var showAlarmSheet = false
     @State private var alarmTime: Date? = UserDefaults.standard.object(forKey: "lastAlarmTime") as? Date
     @State private var showAlarmFullScreen = false
+    @State private var showDemoView = false
     
     @State private var randomEmoji: String = "🙂"
 
@@ -20,89 +22,105 @@ struct MorningScreenView: View {
     let alarmTimeKey = "lastAlarmTime"
 
     var body: some View {
-        ZStack {
-            LinearGradient(gradient: Gradient(colors: [Color.blue.opacity(0.2), Color.blue.opacity(0.4)]),
-                           startPoint: .top, endPoint: .bottom)
-                .edgesIgnoringSafeArea(.all)
+        NavigationStack {
+            ZStack {
+                LinearGradient(gradient: Gradient(colors: [Color.blue.opacity(0.2), Color.blue.opacity(0.4)]),
+                               startPoint: .top, endPoint: .bottom)
+                    .edgesIgnoringSafeArea(.all)
 
-            VStack(spacing: 24) {
-                Text("Good Morning!")
-                    .font(.system(size: 54, weight: .bold, design: .rounded))
-                    .padding(.top, 40)
+                VStack(spacing: 24) {
+                    Text("Good Morning!")
+                        .font(.system(size: 54, weight: .bold, design: .rounded))
+                        .padding(.top, 40)
 
-                Text(randomEmoji)
-                    .font(.system(size: 200))
+                    Text(randomEmoji)
+                        .font(.system(size: 200))
 
-                VStack(spacing: 4) {
-                    Text("\(streakCount)")
-                        .font(.system(size: 60))
-                        .fontWeight(.bold)
-                    Text("day streak")
-                        .font(.headline)
-                        .foregroundColor(.primary)
-                }
+                    VStack(spacing: 4) {
+                        Text("\(streakCount)")
+                            .font(.system(size: 60))
+                            .fontWeight(.bold)
+                        Text("day streak")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                    }
 
-                HStack(spacing: 12) {
-                    ForEach(weekDays, id: \.id) { day in
-                        VStack(spacing: 4) {
-                            Text(day.name)
-                                .font(.caption)
-                                .foregroundColor(.primary)
-                            Circle()
-                                .fill(buttonColor(for: day.color))
-                                .frame(width: 50, height: 50)
-                                .overlay(Circle().stroke(Color.gray.opacity(0.15), lineWidth: 1))
+                    HStack(spacing: 12) {
+                        ForEach(weekDays, id: \.id) { day in
+                            VStack(spacing: 4) {
+                                Text(day.name)
+                                    .font(.caption)
+                                    .foregroundColor(.primary)
+                                Circle()
+                                    .fill(buttonColor(for: day.color))
+                                    .frame(width: 50, height: 50)
+                                    .overlay(Circle().stroke(Color.gray.opacity(0.15), lineWidth: 1))
+                            }
                         }
                     }
-                }
 
-                Spacer()
+                    
+//                    Button(action: { showDemoView = true }) {
+//                        HStack {
+//                            Text("demo mode")
+//                        }
+//                        .padding()
+//                        .foregroundColor(.black)
+//                        .background(Color(.systemGray5))
+//                        .clipShape(Capsule())
+//                    }
+                    Spacer()
 
-                // Alarm Button (opens sheet)
-                Button(action: { handleWakeupCommit() }) {
-                    HStack {
-                        Image(systemName: "alarm")
-                        if let time = alarmTime {
-                            Text("Alarm set for \(formattedTime(time))")
-                                .fontWeight(.semibold)
-                        } else {
-                            Text("Commit to morning!")
-                                .fontWeight(.semibold)
+                    // Alarm Button (opens sheet)
+                    Button(action: { handleWakeupCommit() }) {
+                        HStack {
+                            Image(systemName: "alarm")
+                            if let time = alarmTime {
+                                Text("Alarm set for \(formattedTime(time))")
+                                    .fontWeight(.semibold)
+                            } else {
+                                Text("Commit to morning!")
+                                    .fontWeight(.semibold)
+                            }
                         }
+                        .padding()
+                        .foregroundColor(.black)
+                        .background(Color(.systemGray5))
+                        .clipShape(Capsule())
                     }
-                    .padding()
-                    .foregroundColor(.black)
-                    .background(Color(.systemGray5))
-                    .clipShape(Capsule())
+                }
+                .padding()
+            }
+            .onAppear {
+                NotificationScheduler.requestPermission()
+                loadData()
+                evaluateAlarmCompletion()
+                pickRandomEmoji()
+                
+                NotificationCenter.default.addObserver(forName: Notification.Name("ShowAlarmViewNotification"), object: nil, queue: .main) { _ in
+                    showAlarmFullScreen = true
+                    UserDefaults.standard.set(false, forKey: "ShowAlarmView")
+                }
+                if UserDefaults.standard.bool(forKey: "ShowAlarmView") == true {
+                    showAlarmFullScreen = true
+                    UserDefaults.standard.set(false, forKey: "ShowAlarmView")
                 }
             }
-            .padding()
-        }
-        .onAppear {
-            NotificationScheduler.requestPermission()
-            loadData()
-            evaluateAlarmCompletion()
-            pickRandomEmoji()
+            .sheet(isPresented: $showAlarmSheet, onDismiss: {
+                // Refresh alarm time from UserDefaults
+                alarmTime = UserDefaults.standard.object(forKey: alarmTimeKey) as? Date
+                evaluateAlarmCompletion()
+            }) {
+                AlarmSheetView(isPresented: $showAlarmSheet, existingAlarm: alarmTime)
+                    .presentationDetents([.medium])
+                    .presentationDragIndicator(.visible)
+            }
+            .fullScreenCover(isPresented: $showAlarmFullScreen) { AlarmFullScreenView(isPresented: $showAlarmFullScreen) }
+            .navigationDestination(isPresented: $showDemoView) {
+                DemoView()
+            }
             
-            NotificationCenter.default.addObserver(forName: Notification.Name("ShowAlarmViewNotification"), object: nil, queue: .main) { _ in
-                showAlarmFullScreen = true
-                UserDefaults.standard.set(false, forKey: "ShowAlarmView")
-            }
-            if UserDefaults.standard.bool(forKey: "ShowAlarmView") == true {
-                showAlarmFullScreen = true
-                UserDefaults.standard.set(false, forKey: "ShowAlarmView")
-            }
         }
-        .sheet(isPresented: $showAlarmSheet, onDismiss: {
-            // Refresh alarm time from UserDefaults
-            alarmTime = UserDefaults.standard.object(forKey: alarmTimeKey) as? Date
-            evaluateAlarmCompletion()
-        }) {
-            AlarmSheetView(isPresented: $showAlarmSheet, existingAlarm: alarmTime)
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
-        }
-        .fullScreenCover(isPresented: $showAlarmFullScreen) { AlarmFullScreenView() }
     }
 
     // MARK: - Alarm Evaluation
@@ -126,15 +144,7 @@ struct MorningScreenView: View {
             streakCount = 0
         }
 
-        if let index = weekDays.firstIndex(where: { $0.name == todaySymbol }) {
-            if !weekDays[index].completed {
-                weekDays[index].completed = true
-                weekDays[index].color = color
-                if color != "gray" { streakCount += 1 }
-                context.insert(CompletionData(date: now, color: color))
-                saveData()
-            }
-        }
+        // Completion logic now handled in TapGameView via StreakManager
     }
     
     func handleWakeupCommit() {

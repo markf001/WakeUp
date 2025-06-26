@@ -44,7 +44,11 @@ struct AlarmSheetView: View {
                 confirmationMessage = "Alarm set for \(formattedDate(alarmDate))"
                 isPresented = false
             }
-            .buttonStyle(.borderedProminent)
+            .padding()
+            .foregroundColor(.black)
+            .background(Color(.systemGray5))
+            .clipShape(Capsule())
+//            .buttonStyle(.borderedProminent)
 
             if !confirmationMessage.isEmpty {
                 Text(confirmationMessage)
