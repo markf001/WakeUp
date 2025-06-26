@@ -11,6 +11,9 @@ struct MorningScreenView: View {
 
     @State private var showAlarmSheet = false
     @State private var alarmTime: Date? = UserDefaults.standard.object(forKey: "lastAlarmTime") as? Date
+    @State private var showAlarmFullScreen = false
+    
+    @State private var randomEmoji: String = "🙂"
 
     let streakKey = "streakCount"
     let weekDaysKey = "weekDaysData"
@@ -24,10 +27,10 @@ struct MorningScreenView: View {
 
             VStack(spacing: 24) {
                 Text("Good Morning!")
-                    .font(.system(size: 54, weight: .bold))
+                    .font(.system(size: 54, weight: .bold, design: .rounded))
                     .padding(.top, 40)
 
-                Text("😃")
+                Text(randomEmoji)
                     .font(.system(size: 200))
 
                 VStack(spacing: 4) {
@@ -36,16 +39,20 @@ struct MorningScreenView: View {
                         .fontWeight(.bold)
                     Text("day streak")
                         .font(.headline)
-                        .foregroundColor(.black.opacity(0.7))
+                        .foregroundColor(.primary)
                 }
 
                 HStack(spacing: 12) {
                     ForEach(weekDays, id: \.id) { day in
-                        Text(day.name)
-                            .frame(width: 50, height: 50)
-                            .background(buttonColor(for: day.color))
-                            .foregroundColor(.black)
-                            .clipShape(Circle())
+                        VStack(spacing: 4) {
+                            Text(day.name)
+                                .font(.caption)
+                                .foregroundColor(.primary)
+                            Circle()
+                                .fill(buttonColor(for: day.color))
+                                .frame(width: 50, height: 50)
+                                .overlay(Circle().stroke(Color.gray.opacity(0.15), lineWidth: 1))
+                        }
                     }
                 }
 
@@ -68,15 +75,6 @@ struct MorningScreenView: View {
                     .background(Color(.systemGray5))
                     .clipShape(Capsule())
                 }
-                
-                Button("Send Test Notification") {
-                    sendTestNotification()
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                .background(Color.orange)
-                .foregroundColor(.white)
-                .clipShape(Capsule())
             }
             .padding()
         }
@@ -84,6 +82,16 @@ struct MorningScreenView: View {
             NotificationScheduler.requestPermission()
             loadData()
             evaluateAlarmCompletion()
+            pickRandomEmoji()
+            
+            NotificationCenter.default.addObserver(forName: Notification.Name("ShowAlarmViewNotification"), object: nil, queue: .main) { _ in
+                showAlarmFullScreen = true
+                UserDefaults.standard.set(false, forKey: "ShowAlarmView")
+            }
+            if UserDefaults.standard.bool(forKey: "ShowAlarmView") == true {
+                showAlarmFullScreen = true
+                UserDefaults.standard.set(false, forKey: "ShowAlarmView")
+            }
         }
         .sheet(isPresented: $showAlarmSheet, onDismiss: {
             // Refresh alarm time from UserDefaults
@@ -94,6 +102,7 @@ struct MorningScreenView: View {
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
+        .fullScreenCover(isPresented: $showAlarmFullScreen) { AlarmFullScreenView() }
     }
 
     // MARK: - Alarm Evaluation
@@ -200,6 +209,14 @@ struct MorningScreenView: View {
             } else {
                 print("Test notification scheduled!")
             }
+        }
+    }
+    
+    func pickRandomEmoji() {
+        let allTags: [EmojiTag] = [.good, .bad, .better]
+        if let tag = allTags.randomElement(),
+           let emoji = EmojiStore().randomEmoji(for: tag) {
+            randomEmoji = emoji
         }
     }
 }

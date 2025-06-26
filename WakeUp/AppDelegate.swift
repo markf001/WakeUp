@@ -25,6 +25,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         if let alarm = userInfo["alarm"] as? Bool, alarm == true {
             UserDefaults.standard.set(true, forKey: "ShowAlarmView")
             NotificationCenter.default.post(name: Notification.Name("ShowAlarmViewNotification"), object: nil)
+            NotificationScheduler.clearAlarmNotifications()
         }
         
         completionHandler()

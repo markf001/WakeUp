@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 struct TapSpot: Identifiable {
     let id = UUID()
@@ -11,9 +12,11 @@ enum GameDestination: Hashable {
 }
 
 struct TapGameView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+    
     @State private var spots: [TapSpot] = []
-    @State private var path = NavigationPath()
-
+    
     let spotSize: CGFloat = 70
 
     var body: some View {
@@ -43,7 +46,7 @@ struct TapGameView: View {
                         
                         if spots.allSatisfy({ $0.isTapped }) {
                             Button("Complete") {
-                                path.append(GameDestination.morning)
+                                completeGame()
                             }
                             .font(.headline)
                             .fontWeight(.bold)
@@ -109,6 +112,13 @@ struct TapGameView: View {
         if let index = spots.firstIndex(where: { $0.id == id }) {
             spots[index].isTapped = true
         }
+    }
+
+    private func completeGame() {
+        modelContext.insert(CompletionData(date: Date(), color: "green"))
+        let currentStreak = UserDefaults.standard.integer(forKey: "streakCount")
+        UserDefaults.standard.set(currentStreak + 1, forKey: "streakCount")
+        dismiss()
     }
 }
 
