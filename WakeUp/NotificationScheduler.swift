@@ -2,7 +2,7 @@ import Foundation
 import UserNotifications
 
 struct NotificationScheduler {
-    
+
     static func requestPermission() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
             if let error = error {
@@ -17,7 +17,7 @@ struct NotificationScheduler {
         let content = UNMutableNotificationContent()
         content.title = "⏰ Alarm"
         content.body = "Your alarm is going off!"
-        content.sound = UNNotificationSound(named: UNNotificationSoundName("alarm.caf"))
+        content.sound = UNNotificationSound(named: UNNotificationSoundName("iphone_alarm.caf"))
         content.userInfo = ["alarm": true]
 
         let triggerDate = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: date)
@@ -33,5 +33,11 @@ struct NotificationScheduler {
                 UserDefaults.standard.set(date, forKey: "lastAlarmTime")
             }
         }
+    }
+
+    // Optional test alarm to trigger in 5 seconds
+    static func scheduleTestAlarm() {
+        let testDate = Date().addingTimeInterval(5)
+        scheduleAlarm(at: testDate)
     }
 }
