@@ -8,6 +8,7 @@ struct WakeUpApp: App {
 
         var body: some Scene {
             WindowGroup {
+                NavigationStack {
                 MorningScreenView()
                     .fullScreenCover(isPresented: $showAlarmView) {
                         AlarmFullScreenView()
@@ -18,7 +19,7 @@ struct WakeUpApp: App {
                     }
                     .onReceive(NotificationCenter.default.publisher(for: Notification.Name("ShowAlarmViewNotification"))) { _ in
                         showAlarmView = true
-                    }
+                    }}
             }
             
         }
