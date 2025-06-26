@@ -4,13 +4,17 @@
 //
 //  Created by Luke Albrecht on 26/6/2025.
 //
-
 import SwiftUI
 
 struct AlarmSheetView: View {
     @Binding var isPresented: Bool
-    @State private var selectedDate = Date()
+    @State private var selectedDate: Date
     @State private var confirmationMessage = ""
+
+    init(isPresented: Binding<Bool>, existingAlarm: Date?) {
+        _isPresented = isPresented
+        _selectedDate = State(initialValue: existingAlarm ?? Date())
+    }
 
     var body: some View {
         VStack(spacing: 20) {
@@ -34,8 +38,10 @@ struct AlarmSheetView: View {
                     alarmDate = Calendar.current.date(byAdding: .day, value: 1, to: alarmDate) ?? alarmDate
                 }
 
+                print("⏰ Scheduling alarm for \(alarmDate)")
                 NotificationScheduler.scheduleAlarm(at: alarmDate)
-                UserDefaults.standard.set(alarmDate, forKey: "morningAlarmTime")
+                UserDefaults.standard.set(alarmDate, forKey: "lastAlarmTime")
+                confirmationMessage = "Alarm set for \(formattedDate(alarmDate))"
                 isPresented = false
             }
             .buttonStyle(.borderedProminent)
@@ -52,16 +58,14 @@ struct AlarmSheetView: View {
         .padding()
         .onAppear {
             NotificationScheduler.requestPermission()
+            print("🛠 Alarm sheet appeared. Pre-filled time: \(selectedDate)")
         }
     }
 
     private func formattedDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
-        formatter.dateStyle = .none
         return formatter.string(from: date)
     }
 }
-#Preview {
-    AlarmSheetView(isPresented: .constant(true))
-}
+

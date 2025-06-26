@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UserNotifications
 
 struct MorningScreenView: View {
     @Environment(\.modelContext) private var context
@@ -9,7 +10,7 @@ struct MorningScreenView: View {
     @State private var streakCount = 0
 
     @State private var showAlarmSheet = false
-    @State private var selectedTime = Date()
+    @State private var alarmTime: Date? = UserDefaults.standard.object(forKey: "lastAlarmTime") as? Date
 
     let streakKey = "streakCount"
     let weekDaysKey = "weekDaysData"
@@ -48,50 +49,34 @@ struct MorningScreenView: View {
                     }
                 }
 
-                if let alarmTime = UserDefaults.standard.object(forKey: alarmTimeKey) as? Date {
-                    Text("Alarm set for: \(alarmTime.formatted(date: .omitted, time: .shortened))")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                }
-
                 Spacer()
 
                 // Alarm Button (opens sheet)
-                Button("Set Alarm") {
-                    showAlarmSheet = true
-                }
-                .padding()
-                .foregroundColor(.white)
-                .background(Color.blue)
-                .clipShape(Capsule())
-                .sheet(isPresented: $showAlarmSheet) {
-                    VStack(spacing: 24) {
-                        Text("Pick Your Alarm Time")
-                            .font(.title2)
-                            .bold()
-
-                        DatePicker("", selection: $selectedTime, displayedComponents: .hourAndMinute)
-                            .datePickerStyle(.wheel)
-                            .labelsHidden()
-                            .frame(height: 200)
-
-                        Button("Confirm") {
-                            NotificationScheduler.scheduleAlarm(at: selectedTime)
-                            showAlarmSheet = false
+                Button(action: { handleWakeupCommit() }) {
+                    HStack {
+                        Image(systemName: "alarm")
+                        if let time = alarmTime {
+                            Text("Alarm set for \(formattedTime(time))")
+                                .fontWeight(.semibold)
+                        } else {
+                            Text("Commit to morning!")
+                                .fontWeight(.semibold)
                         }
-                        .padding()
-                        .foregroundColor(.white)
-                        .background(Color.green)
-                        .clipShape(Capsule())
-
-                        Button("Cancel") {
-                            showAlarmSheet = false
-                        }
-                        .foregroundColor(.red)
                     }
                     .padding()
-                    .presentationDetents([.height(350)])
+                    .foregroundColor(.black)
+                    .background(Color(.systemGray5))
+                    .clipShape(Capsule())
                 }
+                
+                Button("Send Test Notification") {
+                    sendTestNotification()
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(Color.orange)
+                .foregroundColor(.white)
+                .clipShape(Capsule())
             }
             .padding()
         }
@@ -100,6 +85,15 @@ struct MorningScreenView: View {
             loadData()
             evaluateAlarmCompletion()
         }
+        .sheet(isPresented: $showAlarmSheet, onDismiss: {
+            // Refresh alarm time from UserDefaults
+            alarmTime = UserDefaults.standard.object(forKey: alarmTimeKey) as? Date
+            evaluateAlarmCompletion()
+        }) {
+            AlarmSheetView(isPresented: $showAlarmSheet, existingAlarm: alarmTime)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
     }
 
     // MARK: - Alarm Evaluation
@@ -107,7 +101,7 @@ struct MorningScreenView: View {
         let calendar = Calendar.current
         let now = Date()
         let weekday = calendar.component(.weekday, from: now)
-        let weekdaySymbols = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        let weekdaySymbols = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
         let todaySymbol = weekdaySymbols[weekday - 1]
 
         guard let alarmTime = UserDefaults.standard.object(forKey: alarmTimeKey) as? Date else { return }
@@ -132,6 +126,11 @@ struct MorningScreenView: View {
                 saveData()
             }
         }
+    }
+    
+    func handleWakeupCommit() {
+        print("📱 Alarm button tapped. Current alarm time: \(alarmTime?.description ?? "None")")
+        showAlarmSheet = true
     }
 
     func buttonColor(for colorName: String) -> Color {
@@ -170,17 +169,41 @@ struct MorningScreenView: View {
 
     func defaultWeekDays() -> [DayStatus] {
         [
-            DayStatus(name: "Mon", completed: false, color: "gray"),
-            DayStatus(name: "Tue", completed: false, color: "gray"),
-            DayStatus(name: "Wed", completed: false, color: "gray"),
-            DayStatus(name: "Thu", completed: false, color: "gray"),
-            DayStatus(name: "Fri", completed: false, color: "gray")
+            DayStatus(name: "Mo", completed: false, color: "gray"),
+            DayStatus(name: "Tu", completed: false, color: "gray"),
+            DayStatus(name: "We", completed: false, color: "gray"),
+            DayStatus(name: "Th", completed: false, color: "gray"),
+            DayStatus(name: "Fr", completed: false, color: "gray")
         ]
+    }
+    
+    func formattedTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+
+    func sendTestNotification() {
+
+        // Schedule a local notification
+        let content = UNMutableNotificationContent()
+        content.title = "Test Alarm"
+        content.body = "This is a test notification alarm."
+        content.sound = UNNotificationSound.default
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 3, repeats: false)
+        let request = UNNotificationRequest(identifier: "testAlarmNotification", content: content, trigger: trigger)
+
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("Error scheduling test notification: \(error.localizedDescription)")
+            } else {
+                print("Test notification scheduled!")
+            }
+        }
     }
 }
 
-struct MorningScreenView_Previews: PreviewProvider {
-    static var previews: some View {
-        MorningScreenView()
-    }
+#Preview {
+    MorningScreenView()
 }
