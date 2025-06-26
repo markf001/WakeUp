@@ -18,6 +18,7 @@ struct NotificationScheduler {
         content.title = "⏰ Alarm"
         content.body = "Your alarm is going off!"
         content.sound = UNNotificationSound(named: UNNotificationSoundName("alarm.caf"))
+        content.userInfo = ["alarm": true]
 
         let triggerDate = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: date)
         let trigger = UNCalendarNotificationTrigger(dateMatching: triggerDate, repeats: false)
