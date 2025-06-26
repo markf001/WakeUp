@@ -1,10 +1,10 @@
+import UIKit
 import SwiftUI
 import SwiftData
 
 @main
 struct WakeUpApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-        @State private var showAlarmView = UserDefaults.standard.bool(forKey: "ShowAlarmView")
 
         var body: some Scene {
             WindowGroup {
@@ -23,4 +23,6 @@ struct WakeUpApp: App {
             }
             
         }
+        .modelContainer(for: CompletionData.self)
+    }
 }

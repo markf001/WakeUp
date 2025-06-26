@@ -1,13 +1,20 @@
 import SwiftUI
+import SwiftData
+import UserNotifications
 
 struct MorningScreenView: View {
-    @State private var showingAlarmSheet = false
-    @State private var alarmTime: Date? = nil
+    @Environment(\.modelContext) private var context
+    @Query private var entries: [CompletionData]
+
     @State private var weekDays: [DayStatus] = []
     @State private var streakCount = 0
 
+    @State private var showAlarmSheet = false
+    @State private var alarmTime: Date? = UserDefaults.standard.object(forKey: "lastAlarmTime") as? Date
+
     let streakKey = "streakCount"
     let weekDaysKey = "weekDaysData"
+    let alarmTimeKey = "lastAlarmTime"
 
     var body: some View {
         ZStack {
@@ -36,14 +43,15 @@ struct MorningScreenView: View {
                     ForEach(weekDays, id: \.id) { day in
                         Text(day.name)
                             .frame(width: 50, height: 50)
-                            .background(day.completed ? Color.green : Color.gray.opacity(0.3))
+                            .background(buttonColor(for: day.color))
                             .foregroundColor(.black)
                             .clipShape(Circle())
                     }
                 }
 
-                
+                Spacer()
 
+                // Alarm Button (opens sheet)
                 Button(action: { handleWakeupCommit() }) {
                     HStack {
                         Image(systemName: "alarm")
@@ -61,69 +69,112 @@ struct MorningScreenView: View {
                     .clipShape(Capsule())
                 }
                 
-                .sheet(isPresented: $showingAlarmSheet) {
-                    AlarmSheetView(isPresented: $showingAlarmSheet)
-                        .presentationDetents([.medium]) // Halfway height sheet (iOS 16+)
-                        .presentationDragIndicator(.visible)
+                Button("Send Test Notification") {
+                    sendTestNotification()
                 }
-                .padding(.bottom, 40)
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(Color.orange)
+                .foregroundColor(.white)
+                .clipShape(Capsule())
             }
             .padding()
         }
-        .onAppear(perform: loadData)
+        .onAppear {
+            NotificationScheduler.requestPermission()
+            loadData()
+            evaluateAlarmCompletion()
+        }
+        .sheet(isPresented: $showAlarmSheet, onDismiss: {
+            // Refresh alarm time from UserDefaults
+            alarmTime = UserDefaults.standard.object(forKey: alarmTimeKey) as? Date
+            evaluateAlarmCompletion()
+        }) {
+            AlarmSheetView(isPresented: $showAlarmSheet, existingAlarm: alarmTime)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
     }
 
+    // MARK: - Alarm Evaluation
+    func evaluateAlarmCompletion() {
+        let calendar = Calendar.current
+        let now = Date()
+        let weekday = calendar.component(.weekday, from: now)
+        let weekdaySymbols = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
+        let todaySymbol = weekdaySymbols[weekday - 1]
+
+        guard let alarmTime = UserDefaults.standard.object(forKey: alarmTimeKey) as? Date else { return }
+
+        let minutesSinceAlarm = calendar.dateComponents([.minute], from: alarmTime, to: now).minute ?? 1000
+        var color = "gray"
+
+        if minutesSinceAlarm <= 15 {
+            color = "green"
+        } else if minutesSinceAlarm <= 30 {
+            color = "yellow"
+        } else {
+            streakCount = 0
+        }
+
+        if let index = weekDays.firstIndex(where: { $0.name == todaySymbol }) {
+            if !weekDays[index].completed {
+                weekDays[index].completed = true
+                weekDays[index].color = color
+                if color != "gray" { streakCount += 1 }
+                context.insert(CompletionData(date: now, color: color))
+                saveData()
+            }
+        }
+    }
+    
     func handleWakeupCommit() {
-        showingAlarmSheet = true
-//        let today = Calendar.current.component(.weekday, from: Date())
-//        let weekdaySymbols = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-//        let todaySymbol = weekdaySymbols[today - 1]
-//
-//        if let index = weekDays.firstIndex(where: { $0.name == todaySymbol }) {
-//            if !weekDays[index].completed {
-//                weekDays[index].completed = true
-//                streakCount += 1
-//                saveData()
-//                print("✅ Wake-up committed for \(todaySymbol)")
-//            } else {
-//                print("🟢 Already completed today")
-//            }
-//        }
+        print("📱 Alarm button tapped. Current alarm time: \(alarmTime?.description ?? "None")")
+        showAlarmSheet = true
+    }
+
+    func buttonColor(for colorName: String) -> Color {
+        switch colorName {
+        case "green": return .green
+        case "yellow": return .yellow
+        default: return Color.gray.opacity(0.3)
+        }
     }
 
     func saveData() {
-        // Save streak
         UserDefaults.standard.set(streakCount, forKey: streakKey)
-
-        // Save weekDays as JSON
         if let encoded = try? JSONEncoder().encode(weekDays) {
             UserDefaults.standard.set(encoded, forKey: weekDaysKey)
         }
     }
 
     func loadData() {
-        // Load alarm if set
-        if let savedAlarmTime = UserDefaults.standard.object(forKey: "morningAlarmTime") as? Date {
-            alarmTime = savedAlarmTime
-        }
-
-        
-        // Load streak
         streakCount = UserDefaults.standard.integer(forKey: streakKey)
 
-        // Load weekDays or use default
         if let savedData = UserDefaults.standard.data(forKey: weekDaysKey),
            let decoded = try? JSONDecoder().decode([DayStatus].self, from: savedData) {
             weekDays = decoded
         } else {
-            weekDays = [
-                DayStatus(name: "Mon", completed: false),
-                DayStatus(name: "Tue", completed: false),
-                DayStatus(name: "Wed", completed: false),
-                DayStatus(name: "Thu", completed: false),
-                DayStatus(name: "Fri", completed: false)
-            ]
+            weekDays = defaultWeekDays()
         }
+
+        let today = Calendar.current.component(.weekday, from: Date())
+        if today == 2 {
+            weekDays = weekDays.map {
+                DayStatus(name: $0.name, completed: false, color: "gray")
+            }
+            saveData()
+        }
+    }
+
+    func defaultWeekDays() -> [DayStatus] {
+        [
+            DayStatus(name: "Mo", completed: false, color: "gray"),
+            DayStatus(name: "Tu", completed: false, color: "gray"),
+            DayStatus(name: "We", completed: false, color: "gray"),
+            DayStatus(name: "Th", completed: false, color: "gray"),
+            DayStatus(name: "Fr", completed: false, color: "gray")
+        ]
     }
     
     func formattedTime(_ date: Date) -> String {
@@ -131,10 +182,28 @@ struct MorningScreenView: View {
         formatter.timeStyle = .short
         return formatter.string(from: date)
     }
+
+    func sendTestNotification() {
+
+        // Schedule a local notification
+        let content = UNMutableNotificationContent()
+        content.title = "Test Alarm"
+        content.body = "This is a test notification alarm."
+        content.sound = UNNotificationSound.default
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 3, repeats: false)
+        let request = UNNotificationRequest(identifier: "testAlarmNotification", content: content, trigger: trigger)
+
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("Error scheduling test notification: \(error.localizedDescription)")
+            } else {
+                print("Test notification scheduled!")
+            }
+        }
+    }
 }
 
-struct MorningScreenView_Previews: PreviewProvider {
-    static var previews: some View {
-        MorningScreenView()
-    }
+#Preview {
+    MorningScreenView()
 }
