@@ -1,16 +1,8 @@
-//
-//  NotificationScheduler.swift
-//  WakeUp
-//
-//  Created by Luke Albrecht on 26/6/2025.
-//
-
 import Foundation
 import UserNotifications
 
 struct NotificationScheduler {
     
-    // Request notification permissions (should be called once early in app lifecycle)
     static func requestPermission() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
             if let error = error {
@@ -20,8 +12,7 @@ struct NotificationScheduler {
             }
         }
     }
-    
-    // Schedule a notification at a specific date with a custom sound
+
     static func scheduleAlarm(at date: Date) {
         let content = UNMutableNotificationContent()
         content.title = "⏰ Alarm"
@@ -38,6 +29,7 @@ struct NotificationScheduler {
                 print("Error scheduling alarm: \(error.localizedDescription)")
             } else {
                 print("Alarm scheduled for \(date)")
+                UserDefaults.standard.set(date, forKey: "lastAlarmTime")
             }
         }
     }
