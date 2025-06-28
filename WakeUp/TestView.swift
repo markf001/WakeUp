@@ -1,10 +1,3 @@
-//
-//  TestView.swift
-//  WakeUp
-//
-//  Created by Luke Albrecht on 26/6/2025.
-//
-
 import SwiftUI
 
 
